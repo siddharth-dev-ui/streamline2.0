@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Streamline — Invest Smarter with AI</title>
+    <meta
+      name="description"
+      content="Streamline combines technical analysis, fundamental research, financial news, and AI reasoning into one intelligent investing platform."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="noise" aria-hidden="true"></div>
+
+    <header class="nav" id="nav">
+      <div class="nav-inner">
+        <a class="brand" href="#top" aria-label="Streamline home">streamline</a>
+        <nav class="nav-links" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#process">How it works</a>
+          <a href="#why">Why Streamline</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <div class="nav-actions">
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle theme">
+            <span class="theme-icon theme-icon-moon" aria-hidden="true"></span>
+            <span class="theme-icon theme-icon-sun" aria-hidden="true"></span>
+          </button>
+          <a class="btn btn-ghost" href="../?app=1">Open app</a>
+          <a class="btn btn-primary" href="../?app=1">Get Started</a>
+          <button class="nav-menu" id="menuToggle" type="button" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span>
+          </button>
+        </div>
+      </div>
+      <div class="mobile-menu" id="mobileMenu" hidden>
+        <a href="#features">Features</a>
+        <a href="#process">How it works</a>
+        <a href="#why">Why Streamline</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <a class="btn btn-primary" href="../?app=1">Get Started</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- HERO -->
+      <section class="hero">
+        <div class="hero-bg" aria-hidden="true">
+          <div class="hero-orb hero-orb-a"></div>
+          <div class="hero-orb hero-orb-b"></div>
+          <div class="hero-orb hero-orb-c"></div>
+          <div class="hero-grid"></div>
+          <span class="float-chip float-1">MSFT +1.4%</span>
+          <span class="float-chip float-2">RSI 58</span>
+          <span class="float-chip float-3">AAPL</span>
+          <span class="float-chip float-4">MACD ↑</span>
+          <span class="float-chip float-5">NVDA</span>
+          <span class="float-chip float-6">P/E 34.2</span>
+        </div>
+
+        <div class="hero-layout">
+          <div class="hero-copy reveal">
+            <p class="brand-mark">streamline</p>
+            <h1>Invest Smarter with AI.</h1>
+            <p class="hero-sub">
+              Streamline combines technical analysis, fundamental research, financial news, and AI
+              reasoning into one intelligent investing platform.
+            </p>
+            <div class="hero-cta">
+              <a class="btn btn-primary btn-lg" href="../?app=1">Get Started</a>
+              <a class="btn btn-ghost btn-lg" href="#demo">See Demo</a>
+            </div>
+          </div>
+
+          <aside class="ai-chat glass reveal" id="demo" aria-label="Live AI recommendation demo">
+            <div class="ai-chat-top">
+              <span class="pulse"></span>
+              <span>Streamline AI</span>
+              <span class="ai-chat-badge">Live demo</span>
+            </div>
+
+            <div class="chat-thread" id="chatThread">
+              <div class="chat-bubble chat-user">
+                <span class="chat-label">You</span>
+                <p>Should I buy Microsoft?</p>
+              </div>
+
+              <div class="chat-bubble chat-ai" data-seed="true">
+                <span class="chat-label">AI</span>
+                <div class="rec-header">
+                  <div>
+                    <span class="rec-kicker">Recommendation</span>
+                    <strong class="rec-verdict">Moderate Buy</strong>
+                  </div>
+                  <div class="rec-confidence">
+                    <span>Confidence</span>
+                    <strong>87%</strong>
+                    <div class="confidence-bar"><i style="--w: 87%"></i></div>
+                  </div>
+                </div>
+                <div class="rec-grid">
+                  <div class="rec-item">
+                    <span class="rec-item-label">Technical Analysis</span>
+                    <strong>Bullish trend</strong>
+                    <p>Price holds above key moving averages with constructive momentum.</p>
+                  </div>
+                  <div class="rec-item">
+                    <span class="rec-item-label">Fundamental Analysis</span>
+                    <strong>Strong revenue growth</strong>
+                    <p>Cloud and AI demand continue to support durable top-line expansion.</p>
+                  </div>
+                  <div class="rec-item rec-item-full">
+                    <span class="rec-item-label">Risk</span>
+                    <strong>Valuation slightly above historical average</strong>
+                    <p>Why it matters: upside may depend on execution matching elevated expectations.</p>
+                  </div>
+                </div>
+                <p class="demo-hint">Try a ticker below — recommendations use live market data.</p>
+              </div>
+            </div>
+
+            <form class="demo-form" id="demoForm">
+              <label class="sr-only" for="demoTicker">Stock ticker</label>
+              <input
+                id="demoTicker"
+                name="ticker"
+                type="text"
+                maxlength="12"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Type a ticker — e.g. AAPL, NVDA, JPM"
+                required
+              />
+              <button class="btn btn-primary" type="submit" id="demoSubmit">Analyze</button>
+            </form>
+            <p class="demo-status" id="demoStatus" role="status" aria-live="polite"></p>
+          </aside>
+        </div>
+      </section>
+
+      <!-- FEATURES -->
+      <section class="section features" id="features">
+        <div class="section-head reveal">
+          <p class="eyebrow">Features</p>
+          <h2>Everything you need to research with clarity.</h2>
+          <p class="section-sub">
+            Seven capabilities, one workspace — built for investors who want reasoning, not noise.
+          </p>
+        </div>
+        <div class="feature-grid feature-grid-7">
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3.5" stroke="currentColor" stroke-width="1.6"/></svg>
+            </div>
+            <h3>AI Investment Assistant</h3>
+            <p>Provides transparent investment recommendations with detailed reasoning.</p>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5M4 19h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 15l3.5-4 3 2.5L17 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <h3>Technical Analysis</h3>
+            <p>RSI, MACD, Moving Averages, Bollinger Bands, ATR and more.</p>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M8 14v2M12 10v6M16 8v8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <h3>Fundamental Analysis</h3>
+            <p>Revenue, earnings, valuation, margins, debt, cash flow.</p>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M5 7h14v10H5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 11h8M8 14h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <h3>News Intelligence</h3>
+            <p>Summarizes market news and company events with sentiment analysis.</p>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 4l2.2 4.5L19 9.2l-3.5 3.4.8 4.9L12 15.2 7.7 17.5l.8-4.9L5 9.2l4.8-.7L12 4z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </div>
+            <h3>Smart Watchlists</h3>
+            <p>Track companies with AI-powered summaries and alerts.</p>
+          </article>
+          <article class="feature-card reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="7.5" stroke="currentColor" stroke-width="1.6"/><path d="M12 4.5a7.5 7.5 0 0 1 7.5 7.5H12V4.5z" fill="currentColor" opacity=".25"/><path d="M12 12l5.3 3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <h3>Portfolio Insights</h3>
+            <p>Analyze diversification, allocation, and portfolio risk.</p>
+          </article>
+          <article class="feature-card feature-card-wide reveal">
+            <div class="feature-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 4a5 5 0 0 1 0 10 5 5 0 0 1 0-10z" stroke="currentColor" stroke-width="1.6"/><path d="M5 19c1.6-3 4-4.5 7-4.5S17.4 16 19 19" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </div>
+            <h3>Personalized Investing</h3>
+            <p>Recommendations adapt to each user's investment profile and risk tolerance.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- PROCESS -->
+      <section class="section process" id="process">
+        <div class="section-head reveal">
+          <p class="eyebrow">Transparency</p>
+          <h2>How Streamline Makes Recommendations</h2>
+          <p class="section-sub">
+            A clear path from market data to a reasoned recommendation — every step visible.
+          </p>
+        </div>
+
+        <div class="workflow">
+          <article class="workflow-step reveal">
+            <div class="workflow-num">01</div>
+            <div class="workflow-body">
+              <h3>Collect Market Data</h3>
+              <p>Historical prices, company fundamentals, market news and financial statements.</p>
+            </div>
+          </article>
+          <div class="workflow-arrow" aria-hidden="true">↓</div>
+
+          <article class="workflow-step reveal">
+            <div class="workflow-num">02</div>
+            <div class="workflow-body">
+              <h3>Technical Analysis</h3>
+              <p>Calculate indicators including RSI, MACD, EMA, SMA and Bollinger Bands.</p>
+            </div>
+          </article>
+          <div class="workflow-arrow" aria-hidden="true">↓</div>
+
+          <article class="workflow-step reveal">
+            <div class="workflow-num">03</div>
+            <div class="workflow-body">
+              <h3>Fundamental Analysis</h3>
+              <p>Evaluate growth, profitability, valuation and financial strength.</p>
+            </div>
+          </article>
+          <div class="workflow-arrow" aria-hidden="true">↓</div>
+
+          <article class="workflow-step reveal">
+            <div class="workflow-num">04</div>
+            <div class="workflow-body">
+              <h3>AI Reasoning</h3>
+              <p>
+                Combine technical, fundamental and news analysis while considering the user's
+                investment profile.
+              </p>
+            </div>
+          </article>
+          <div class="workflow-arrow" aria-hidden="true">↓</div>
+
+          <article class="workflow-step workflow-step-final glass reveal">
+            <div class="workflow-num">05</div>
+            <div class="workflow-body">
+              <h3>Transparent Recommendation</h3>
+              <p>Every output shows the full rationale — not just a label.</p>
+              <ul class="output-chips">
+                <li>Recommendation</li>
+                <li>Confidence Score</li>
+                <li>Technical Reasons</li>
+                <li>Fundamental Reasons</li>
+                <li>Potential Risks</li>
+                <li>Investment Horizon</li>
+                <li>Important Uncertainties</li>
+              </ul>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- COMPARISON -->
+      <section class="section why" id="why">
+        <div class="section-head reveal">
+          <p class="eyebrow">Comparison</p>
+          <h2>Why Investors Choose Streamline</h2>
+          <p class="section-sub">Traditional platforms scatter research. Streamline unifies it.</p>
+        </div>
+
+        <div class="compare-grid">
+          <article class="compare-card compare-traditional reveal">
+            <h3>Traditional Platforms</h3>
+            <ul>
+              <li>Multiple websites</li>
+              <li>Limited explanations</li>
+              <li>Static screeners</li>
+              <li>Manual research</li>
+            </ul>
+          </article>
+          <article class="compare-card compare-streamline glass reveal">
+            <h3>Streamline</h3>
+            <ul>
+              <li>AI-powered research</li>
+              <li>Personalized recommendations</li>
+              <li>Technical analysis</li>
+              <li>Fundamental analysis</li>
+              <li>News analysis</li>
+              <li>Portfolio insights</li>
+              <li>Transparent reasoning</li>
+              <li>One unified platform</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- PRICING (keep lean placeholder) -->
+      <section class="section pricing" id="pricing">
+        <div class="section-head reveal">
+          <p class="eyebrow">Pricing</p>
+          <h2>Simple plans. Serious research.</h2>
+          <p class="section-sub">Placeholder pricing — refine before public launch.</p>
+        </div>
+        <div class="pricing-grid">
+          <article class="price-card reveal">
+            <h3>Explorer</h3>
+            <p class="price"><span>$0</span> / forever</p>
+            <p class="price-desc">Core research and watchlists to get started.</p>
+            <a class="btn btn-ghost" href="../?app=1">Get Started</a>
+          </article>
+          <article class="price-card price-card-featured glass reveal">
+            <p class="price-badge">Recommended</p>
+            <h3>Pro</h3>
+            <p class="price"><span>$29</span> / month</p>
+            <p class="price-desc">Full workspace for active investors.</p>
+            <a class="btn btn-primary" href="../?app=1">Get Started</a>
+          </article>
+          <article class="price-card reveal">
+            <h3>Desk</h3>
+            <p class="price"><span>$99</span> / month</p>
+            <p class="price-desc">For small teams and power users.</p>
+            <a class="btn btn-ghost" href="#contact">Contact</a>
+          </article>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="section faq" id="faq">
+        <div class="section-head reveal">
+          <p class="eyebrow">FAQ</p>
+          <h2>Answers, without the fine print fog.</h2>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item reveal">
+            <summary>Is Streamline financial advice?</summary>
+            <p>
+              No. Streamline provides investment research and educational insights. Decisions remain
+              yours.
+            </p>
+          </details>
+          <details class="faq-item reveal">
+            <summary>Why does every recommendation include reasoning?</summary>
+            <p>
+              Trust requires transparency. Streamline shows technical, fundamental, and risk factors
+              so you can evaluate the “why,” not just the label.
+            </p>
+          </details>
+          <details class="faq-item reveal">
+            <summary>Is my portfolio data private?</summary>
+            <p>
+              Holdings and preferences stay on your machine in local storage for the current build.
+            </p>
+          </details>
+          <details class="faq-item reveal">
+            <summary>Do I need an API key?</summary>
+            <p>No. Streamline runs a local research model by default.</p>
+          </details>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="section cta-band" id="cta">
+        <div class="cta-band-inner reveal">
+          <div class="cta-glow" aria-hidden="true"></div>
+          <h2>Ready to Invest Smarter?</h2>
+          <p>Join investors using AI to make more informed decisions.</p>
+          <div class="hero-cta cta-actions">
+            <a class="btn btn-primary btn-lg" href="../?app=1">Get Started</a>
+            <a class="btn btn-ghost btn-lg" href="#features">Learn More</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer" id="contact">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <a class="brand" href="#top">streamline</a>
+          <p>AI-powered investment research — clear, calm, complete.</p>
+          <div class="social-links" aria-label="Social">
+            <a href="#" aria-label="X">X</a>
+            <a href="#" aria-label="LinkedIn">in</a>
+            <a href="#" aria-label="GitHub">GH</a>
+          </div>
+        </div>
+        <div class="footer-cols">
+          <div>
+            <h4>Navigation</h4>
+            <a href="#features">Features</a>
+            <a href="#process">How it works</a>
+            <a href="#why">Why Streamline</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#faq">FAQ</a>
+          </div>
+          <div>
+            <h4>Legal</h4>
+            <a href="#privacy">Privacy Policy</a>
+            <a href="#terms">Terms of Service</a>
+            <a href="#contact">Contact</a>
+          </div>
+          <div>
+            <h4>App</h4>
+            <a href="../?app=1">Open workspace</a>
+            <a href="../?app=1">Get Started</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-disclaimer" id="privacy">
+        Streamline provides investment research and educational insights. It does not provide
+        personalized financial, investment, legal, or tax advice. Investing involves risk, including
+        the possible loss of principal.
+      </div>
+      <div class="footer-bottom" id="terms">
+        <span>© <span id="year"></span> Streamline</span>
+        <span>Built for investors who value clarity.</span>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
