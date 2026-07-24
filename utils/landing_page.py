@@ -340,13 +340,6 @@ def render_landing() -> None:
         unsafe_allow_html=True,
     )
 
-    # Reliable native entry (iframe "Open app" links are sandboxed by Streamlit).
-    top = st.columns([2, 1, 2])
-    with top[1]:
-        if st.button("Open app", type="primary", use_container_width=True, key="enter_app_top"):
-            enter_app()
-            st.rerun()
-
     try:
         components.html(_inline_landing_html(), height=4800, scrolling=True)
     except Exception as exc:
