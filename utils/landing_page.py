@@ -59,7 +59,7 @@ html.streamlit-embed select {
   font-family: "Montserrat", system-ui, sans-serif !important;
 }
 html.streamlit-embed h1,
-html.streamlit-embed .cta-title,
+html.streamlit-embed .cta-band-inner h2,
 html.streamlit-embed .workflow-num {
   font-family: "Instrument Serif", Georgia, "Times New Roman", serif !important;
 }
