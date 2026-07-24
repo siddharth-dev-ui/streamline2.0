@@ -14,10 +14,19 @@ ENTERED_KEY = "entered_app"
 def should_show_landing() -> bool:
     """Return True when the marketing landing should be shown instead of the app."""
     params = st.query_params
-    if params.get("app") == "1":
+    app_flag = params.get("app")
+    # query_params values can be str or list depending on Streamlit version
+    if isinstance(app_flag, (list, tuple)):
+        app_flag = app_flag[0] if app_flag else None
+    if str(app_flag or "") == "1":
         st.session_state[ENTERED_KEY] = True
-    if params.get("landing") == "1":
+
+    landing_flag = params.get("landing")
+    if isinstance(landing_flag, (list, tuple)):
+        landing_flag = landing_flag[0] if landing_flag else None
+    if str(landing_flag or "") == "1":
         st.session_state[ENTERED_KEY] = False
+
     return not st.session_state.get(ENTERED_KEY, False)
 
 
@@ -26,6 +35,11 @@ def enter_app() -> None:
     st.session_state[ENTERED_KEY] = True
     try:
         st.query_params["app"] = "1"
+    except Exception:
+        pass
+    try:
+        if "landing" in st.query_params:
+            del st.query_params["landing"]
     except Exception:
         pass
 
@@ -125,8 +139,9 @@ html.streamlit-embed .pulse {
     )
 
     # Normalize all “enter app” targets for Streamlit (Cloud + local).
+    # Use hash hrefs so a failed handler cannot navigate the iframe to ?app=1.
     for old in ('href="../?app=1"', 'href="../"', 'href="/?app=1"'):
-        html = html.replace(old, 'href="?app=1" data-enter-app="1"')
+        html = html.replace(old, 'href="#enter-app" data-enter-app="1"')
 
     bridge = """
 <script>
@@ -155,23 +170,44 @@ window.STREAMLIT_EMBED = true;
   forceVisible();
 
   function enterApp(event) {
-    if (event) event.preventDefault();
-    var targets = [];
-    try { targets.push(window.top); } catch (e) {}
-    try { targets.push(window.parent); } catch (e) {}
-    targets.push(window);
-    for (var i = 0; i < targets.length; i++) {
-      var target = targets[i];
-      if (!target || !target.location) continue;
-      try {
-        var url = new URL(target.location.href);
-        url.searchParams.set("app", "1");
-        url.searchParams.delete("landing");
-        target.location.href = url.toString();
-        return;
-      } catch (err) {}
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
     }
-    try { window.location.href = "?app=1"; } catch (err2) {}
+
+    // Never navigate the iframe itself (causes a flash and stays on landing).
+    // Streamlit sandboxes components.html without allow-top-navigation, so
+    // parent.location.assign is blocked — click a real link in the parent instead.
+    try {
+      window.parent.postMessage({ type: "streamline-enter-app" }, "*");
+    } catch (e) {}
+
+    try {
+      var parentWin = window.parent;
+      var parentDoc = parentWin.document;
+      var url = new URL(parentWin.location.href);
+      url.searchParams.set("app", "1");
+      url.searchParams.delete("landing");
+      var href = url.toString();
+
+      var link = parentDoc.getElementById("streamline-enter-app-link");
+      if (!link) {
+        link = parentDoc.createElement("a");
+        link.id = "streamline-enter-app-link";
+        link.style.display = "none";
+        parentDoc.body.appendChild(link);
+      }
+      link.setAttribute("href", href);
+      link.click();
+      return;
+    } catch (err) {}
+
+    try {
+      var url2 = new URL(window.parent.location.href);
+      url2.searchParams.set("app", "1");
+      url2.searchParams.delete("landing");
+      window.parent.location.assign(url2.toString());
+    } catch (err2) {}
   }
 
   document.querySelectorAll("[data-enter-app], a[href*='app=1']").forEach(function (el) {
@@ -193,6 +229,74 @@ window.STREAMLIT_EMBED = true;
 
 def render_landing() -> None:
     """Render the full marketing landing page inside Streamlit."""
+    # Parent-page bridge: iframe links cannot set top.location under Streamlit's sandbox.
+    # Listen for postMessage and keep a hidden <a> the iframe can click.
+    st.html(
+        """
+<script>
+(function () {
+  function goToApp() {
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set("app", "1");
+      url.searchParams.delete("landing");
+      window.location.href = url.toString();
+    } catch (err) {
+      window.location.search = "app=1";
+    }
+  }
+
+  if (!window.__streamlineEnterAppBound) {
+    window.__streamlineEnterAppBound = true;
+    window.addEventListener("message", function (event) {
+      if (event && event.data && event.data.type === "streamline-enter-app") {
+        goToApp();
+      }
+    });
+  }
+
+  var link = document.getElementById("streamline-enter-app-link");
+  if (!link) {
+    link = document.createElement("a");
+    link.id = "streamline-enter-app-link";
+    link.href = "?app=1";
+    link.style.display = "none";
+    link.setAttribute("aria-hidden", "true");
+    document.body.appendChild(link);
+  }
+
+  // st.html may run inside a nested frame — also bind on parent if reachable.
+  try {
+    var parentWin = window.parent;
+    if (parentWin && parentWin !== window) {
+      if (!parentWin.__streamlineEnterAppBound) {
+        parentWin.__streamlineEnterAppBound = true;
+        parentWin.addEventListener("message", function (event) {
+          if (event && event.data && event.data.type === "streamline-enter-app") {
+            try {
+              var url = new URL(parentWin.location.href);
+              url.searchParams.set("app", "1");
+              url.searchParams.delete("landing");
+              parentWin.location.href = url.toString();
+            } catch (e) {}
+          }
+        });
+      }
+      var parentDoc = parentWin.document;
+      if (parentDoc && !parentDoc.getElementById("streamline-enter-app-link")) {
+        var parentLink = parentDoc.createElement("a");
+        parentLink.id = "streamline-enter-app-link";
+        parentLink.href = "?app=1";
+        parentLink.style.display = "none";
+        parentDoc.body.appendChild(parentLink);
+      }
+    }
+  } catch (err) {}
+})();
+</script>
+"""
+    )
+
     st.markdown(
         """
         <style>
@@ -235,6 +339,13 @@ def render_landing() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+    # Reliable native entry (iframe "Open app" links are sandboxed by Streamlit).
+    top = st.columns([2, 1, 2])
+    with top[1]:
+        if st.button("Open app", type="primary", use_container_width=True, key="enter_app_top"):
+            enter_app()
+            st.rerun()
 
     try:
         components.html(_inline_landing_html(), height=4800, scrolling=True)

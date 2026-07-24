@@ -100,7 +100,8 @@
     if (anchor.hasAttribute("data-enter-app")) return;
     const href = anchor.getAttribute("href") || "";
     if (window.STREAMLIT_EMBED || appBase === "") {
-      anchor.setAttribute("href", "?app=1");
+      // Hash target avoids flashing the iframe if navigation is sandboxed.
+      anchor.setAttribute("href", "#enter-app");
       anchor.setAttribute("data-enter-app", "1");
       return;
     }
@@ -109,6 +110,42 @@
       anchor.setAttribute("href", `${appBase}${path.startsWith("/") ? path : `/${path}`}`);
     }
   });
+
+  if (window.STREAMLIT_EMBED) {
+    const enterFromEmbed = (event) => {
+      if (window.streamlineEnterApp) {
+        window.streamlineEnterApp(event);
+        return;
+      }
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      try {
+        window.parent.postMessage({ type: "streamline-enter-app" }, "*");
+      } catch (err) {}
+      try {
+        const parentDoc = window.parent.document;
+        let link = parentDoc.getElementById("streamline-enter-app-link");
+        const url = new URL(window.parent.location.href);
+        url.searchParams.set("app", "1");
+        url.searchParams.delete("landing");
+        if (!link) {
+          link = parentDoc.createElement("a");
+          link.id = "streamline-enter-app-link";
+          link.style.display = "none";
+          parentDoc.body.appendChild(link);
+        }
+        link.setAttribute("href", url.toString());
+        link.click();
+      } catch (err) {}
+    };
+
+    document.querySelectorAll("[data-enter-app]").forEach((el) => {
+      el.addEventListener("click", enterFromEmbed);
+    });
+    window.streamlineEnterApp = window.streamlineEnterApp || enterFromEmbed;
+  }
 
   const io = new IntersectionObserver(
     (entries) => {
