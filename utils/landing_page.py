@@ -50,7 +50,12 @@ def _inline_landing_html() -> str:
         '<link rel="stylesheet" href="styles.css" />',
         f"<style>\n{css}\n</style>",
     )
-    html = html.replace('<script src="script.js"></script>', f"<script>\n{js}\n</script>")
+    # Flag must be set BEFORE landing/script.js runs.
+    html = html.replace(
+        '<script src="script.js"></script>',
+        "<script>window.STREAMLIT_EMBED = true;</script>"
+        f"<script>\n{js}\n</script>",
+    )
 
     # Normalize all “enter app” targets for Streamlit (Cloud + local).
     for old in ('href="../?app=1"', 'href="../"', 'href="/?app=1"'):
@@ -60,6 +65,14 @@ def _inline_landing_html() -> str:
 <script>
 window.STREAMLIT_EMBED = true;
 (function () {
+  try {
+    document.documentElement.classList.add("streamlit-embed");
+    if (document.body) document.body.classList.add("streamlit-embed");
+    document.querySelectorAll(".reveal").forEach(function (el) {
+      el.classList.add("visible");
+    });
+  } catch (e) {}
+
   function enterApp(event) {
     if (event) event.preventDefault();
     var targets = [];
@@ -84,8 +97,19 @@ window.STREAMLIT_EMBED = true;
     el.addEventListener("click", enterApp);
   });
 
-  // Expose for any CTA that calls it directly.
   window.streamlineEnterApp = enterApp;
+
+  // Re-apply after a tick in case the main script runs later.
+  setTimeout(function () {
+    document.querySelectorAll(".reveal").forEach(function (el) {
+      el.classList.add("visible");
+    });
+  }, 50);
+  setTimeout(function () {
+    document.querySelectorAll(".reveal").forEach(function (el) {
+      el.classList.add("visible");
+    });
+  }, 400);
 })();
 </script>
 """

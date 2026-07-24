@@ -1230,6 +1230,13 @@ p {
   transform: translateY(0);
 }
 
+/* Streamlit Cloud / iframe embed: IntersectionObserver often never fires */
+html.streamlit-embed .reveal,
+body.streamlit-embed .reveal {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
 @keyframes drift {
   from { transform: translate(0, 0) scale(1); }
   to { transform: translate(-3%, 4%) scale(1.06); }

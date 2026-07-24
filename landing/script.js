@@ -10,6 +10,13 @@
   const preferred = stored || "light";
   root.setAttribute("data-theme", preferred);
 
+  // Streamlit embeds iframe content where scroll IO often never marks .reveal visible.
+  if (window.STREAMLIT_EMBED) {
+    root.classList.add("streamlit-embed");
+    document.body?.classList.add("streamlit-embed");
+    document.querySelectorAll(".reveal").forEach((el) => el.classList.add("visible"));
+  }
+
   if (year) year.textContent = String(new Date().getFullYear());
 
   themeToggle?.addEventListener("click", () => {
@@ -87,6 +94,17 @@
   );
 
   document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+
+  // Failsafe: if nothing revealed after a moment (common in Streamlit iframes), show all.
+  setTimeout(() => {
+    const revealed = document.querySelectorAll(".reveal.visible").length;
+    const total = document.querySelectorAll(".reveal").length;
+    if (window.STREAMLIT_EMBED || (total > 0 && revealed === 0)) {
+      document.documentElement.classList.add("streamlit-embed");
+      document.body?.classList.add("streamlit-embed");
+      document.querySelectorAll(".reveal").forEach((el) => el.classList.add("visible"));
+    }
+  }, 600);
 
   // —— Live demo recommendation ——
   const demoForm = document.getElementById("demoForm");
