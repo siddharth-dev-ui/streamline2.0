@@ -50,6 +50,19 @@ def _inline_landing_html() -> str:
     # opacity:0 with fill-mode:both leave copy permanently invisible.
     # Force content visible with no reliance on IntersectionObserver or motion.
     embed_css = """
+html.streamlit-embed,
+html.streamlit-embed body,
+html.streamlit-embed button,
+html.streamlit-embed input,
+html.streamlit-embed textarea,
+html.streamlit-embed select {
+  font-family: "Montserrat", system-ui, sans-serif !important;
+}
+html.streamlit-embed h1,
+html.streamlit-embed .cta-title,
+html.streamlit-embed .workflow-num {
+  font-family: "Instrument Serif", Georgia, "Times New Roman", serif !important;
+}
 html.streamlit-embed .reveal,
 html.streamlit-embed .reveal.visible,
 body.streamlit-embed .reveal,

@@ -1,4 +1,12 @@
-﻿/* Streamline landing â€” premium fintech aesthetic */
+﻿/* Streamline landing — premium fintech aesthetic */
+
+:root {
+  --radius: 18px;
+  --radius-sm: 12px;
+  --font: "Montserrat", system-ui, sans-serif;
+  --display: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
 
 :root,
 [data-theme="light"] {
@@ -19,11 +27,8 @@
   --nav-bg: rgba(243, 238, 224, 0.7);
   --hero-panel: rgba(250, 246, 234, 0.78);
   --chart-line: #7e22ce;
-  --radius: 18px;
-  --radius-sm: 12px;
   --font: "Montserrat", system-ui, sans-serif;
-  --display: "Instrument Serif", Georgia, serif;
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --display: "Instrument Serif", Georgia, "Times New Roman", serif;
   color-scheme: light;
 }
 
@@ -45,6 +50,9 @@
   --nav-bg: rgba(34, 34, 38, 0.72);
   --hero-panel: rgba(44, 44, 50, 0.82);
   --chart-line: #c4a1ff;
+  /* Keep the same typefaces as light — do not fall back to system UI */
+  --font: "Montserrat", system-ui, sans-serif;
+  --display: "Instrument Serif", Georgia, "Times New Roman", serif;
   color-scheme: dark;
 }
 
@@ -65,7 +73,15 @@ body {
   color: var(--text);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: var(--font);
 }
 
 body::before {
@@ -105,6 +121,7 @@ h3 {
   letter-spacing: -0.03em;
   font-weight: 600;
   margin: 0;
+  font-family: var(--font);
 }
 
 h1 {
