@@ -17,6 +17,19 @@ DATA_DIR = Path(__file__).resolve().parent
 WATCHLIST_PATH = DATA_DIR / "watchlists.json"
 
 
+def _watchlist_path() -> Path:
+    from data.paths import current_user_dir
+
+    path = current_user_dir() / "watchlists.json"
+    if not path.exists() and WATCHLIST_PATH.exists() and path != WATCHLIST_PATH:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(WATCHLIST_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+        except OSError:
+            pass
+    return path
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -56,11 +69,12 @@ def _normalize_watchlist(item: dict[str, Any]) -> dict[str, Any]:
 
 def load_store() -> dict[str, Any]:
     """Load the full watchlist store from disk."""
-    if not WATCHLIST_PATH.exists():
+    path = _watchlist_path()
+    if not path.exists():
         return _empty_store()
 
     try:
-        with WATCHLIST_PATH.open(encoding="utf-8") as file:
+        with path.open(encoding="utf-8") as file:
             data = json.load(file)
     except (json.JSONDecodeError, OSError):
         return _empty_store()
@@ -92,7 +106,8 @@ def load_store() -> dict[str, Any]:
 
 def save_store(store: dict[str, Any]) -> None:
     """Persist the watchlist store."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path = _watchlist_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     watchlists = [_normalize_watchlist(item) for item in store.get("watchlists") or []]
     active_id = store.get("active_id")
     if active_id and not any(item["id"] == active_id for item in watchlists):
@@ -103,7 +118,7 @@ def save_store(store: dict[str, Any]) -> None:
         "active_id": active_id,
         "updated_at": _now(),
     }
-    with WATCHLIST_PATH.open("w", encoding="utf-8") as file:
+    with path.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2)
 
 

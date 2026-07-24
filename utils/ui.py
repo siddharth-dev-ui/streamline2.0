@@ -68,6 +68,17 @@ def render_sidebar() -> None:
             toggle_theme()
             st.rerun()
 
+        st.markdown("---")
+        from utils.auth import get_current_user, logout_user
+
+        user = get_current_user()
+        if user:
+            label = user.get("name") or user.get("email") or "Signed in"
+            st.caption(label)
+            if st.button("Sign out", key="auth_sign_out", use_container_width=True):
+                logout_user()
+                st.rerun()
+
 
 def _run_research_query(query: str) -> None:
     from ai.research import run_research

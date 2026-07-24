@@ -11,6 +11,19 @@ DATA_DIR = Path(__file__).resolve().parent
 PORTFOLIO_PATH = DATA_DIR / "portfolio.json"
 
 
+def _portfolio_path() -> Path:
+    from data.paths import current_user_dir
+
+    path = current_user_dir() / "portfolio.json"
+    if not path.exists() and PORTFOLIO_PATH.exists() and path != PORTFOLIO_PATH:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(PORTFOLIO_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+        except OSError:
+            pass
+    return path
+
+
 def _empty_portfolio() -> dict[str, Any]:
     return {"holdings": [], "updated_at": None}
 
@@ -30,11 +43,12 @@ def _normalize_holding(holding: dict[str, Any]) -> dict[str, Any]:
 
 def load_holdings() -> list[dict[str, Any]]:
     """Load portfolio holdings from disk."""
-    if not PORTFOLIO_PATH.exists():
+    path = _portfolio_path()
+    if not path.exists():
         return []
 
     try:
-        with PORTFOLIO_PATH.open(encoding="utf-8") as file:
+        with path.open(encoding="utf-8") as file:
             data = json.load(file)
     except (json.JSONDecodeError, OSError):
         return []
@@ -59,12 +73,13 @@ def load_holdings() -> list[dict[str, Any]]:
 
 def save_holdings(holdings: list[dict[str, Any]]) -> None:
     """Persist portfolio holdings to disk."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path = _portfolio_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "holdings": [_normalize_holding(holding) for holding in holdings],
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    with PORTFOLIO_PATH.open("w", encoding="utf-8") as file:
+    with path.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2)
 
 

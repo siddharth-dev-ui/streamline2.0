@@ -12,13 +12,28 @@ DATA_DIR = Path(__file__).resolve().parent
 PROFILE_PATH = DATA_DIR / "user_profile.json"
 
 
+def _profile_path() -> Path:
+    from data.paths import current_user_dir
+
+    return current_user_dir() / "user_profile.json"
+
+
 def load_profile() -> dict[str, Any]:
     """Load the user profile from disk, or return an empty profile."""
-    if not PROFILE_PATH.exists():
+    path = _profile_path()
+    # Migrate legacy single-tenant profile into the signed-in user's folder once.
+    if not path.exists() and PROFILE_PATH.exists() and path != PROFILE_PATH:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(PROFILE_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+        except OSError:
+            pass
+
+    if not path.exists():
         return empty_profile()
 
     try:
-        with PROFILE_PATH.open(encoding="utf-8") as file:
+        with path.open(encoding="utf-8") as file:
             data = json.load(file)
     except (json.JSONDecodeError, OSError):
         return empty_profile()
@@ -31,12 +46,13 @@ def load_profile() -> dict[str, Any]:
 
 def save_profile(profile: dict[str, Any]) -> None:
     """Persist the user profile to disk."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path = _profile_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     payload = normalize_profile(profile)
     if is_profile_complete(payload):
         payload["onboarding_completed"] = True
 
-    with PROFILE_PATH.open("w", encoding="utf-8") as file:
+    with path.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2)
 
 
@@ -48,5 +64,6 @@ def has_completed_onboarding() -> bool:
 
 def clear_profile() -> None:
     """Remove the stored profile file."""
-    if PROFILE_PATH.exists():
-        PROFILE_PATH.unlink()
+    path = _profile_path()
+    if path.exists():
+        path.unlink()

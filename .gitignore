@@ -3,6 +3,8 @@
 data/user_profile.json
 data/portfolio.json
 data/watchlists.json
+data/auth.db
+data/users/
 
 # Python
 .venv/
