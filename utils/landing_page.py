@@ -46,9 +46,63 @@ def _inline_landing_html() -> str:
     css = css.replace("</style>", "<\\/style>")
     js = js.replace("</script>", "<\\/script>")
 
+    # Streamlit iframes often pause CSS animations. Animations that start at
+    # opacity:0 with fill-mode:both leave copy permanently invisible.
+    # Force content visible with no reliance on IntersectionObserver or motion.
+    embed_css = """
+html.streamlit-embed .reveal,
+html.streamlit-embed .reveal.visible,
+body.streamlit-embed .reveal,
+body.streamlit-embed .reveal.visible {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+html.streamlit-embed .brand-mark,
+html.streamlit-embed h1,
+html.streamlit-embed h2,
+html.streamlit-embed h3,
+html.streamlit-embed h4,
+html.streamlit-embed p,
+html.streamlit-embed li,
+html.streamlit-embed span,
+html.streamlit-embed a,
+html.streamlit-embed strong,
+html.streamlit-embed .hero-sub,
+html.streamlit-embed .hero-cta,
+html.streamlit-embed .eyebrow,
+html.streamlit-embed .chat-bubble,
+html.streamlit-embed .rec-item,
+html.streamlit-embed .feature-card,
+html.streamlit-embed .section-head,
+html.streamlit-embed .workflow-step,
+html.streamlit-embed .compare-card,
+html.streamlit-embed .price-card,
+html.streamlit-embed .faq-item,
+html.streamlit-embed .cta-band-inner,
+html.streamlit-embed .ai-chat,
+html.streamlit-embed .nav,
+html.streamlit-embed .footer {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+html.streamlit-embed .hero-orb,
+html.streamlit-embed .cta-panel::after,
+html.streamlit-embed .workflow-arrow,
+html.streamlit-embed .pulse {
+  animation: none !important;
+}
+"""
+
+    html = html.replace(
+        '<html lang="en" data-theme="light">',
+        '<html lang="en" data-theme="light" class="streamlit-embed">',
+    )
     html = html.replace(
         '<link rel="stylesheet" href="styles.css" />',
-        f"<style>\n{css}\n</style>",
+        f"<style>\n{css}\n{embed_css}\n</style>",
     )
     # Flag must be set BEFORE landing/script.js runs.
     html = html.replace(
@@ -65,13 +119,27 @@ def _inline_landing_html() -> str:
 <script>
 window.STREAMLIT_EMBED = true;
 (function () {
-  try {
-    document.documentElement.classList.add("streamlit-embed");
-    if (document.body) document.body.classList.add("streamlit-embed");
-    document.querySelectorAll(".reveal").forEach(function (el) {
-      el.classList.add("visible");
-    });
-  } catch (e) {}
+  function forceVisible() {
+    try {
+      document.documentElement.classList.add("streamlit-embed");
+      if (document.body) document.body.classList.add("streamlit-embed");
+      document.querySelectorAll(".reveal").forEach(function (el) {
+        el.classList.add("visible");
+        el.style.opacity = "1";
+        el.style.transform = "none";
+        el.style.animation = "none";
+      });
+      document.querySelectorAll(
+        ".brand-mark, .hero-sub, .hero-cta, .chat-bubble, .rec-item, .eyebrow"
+      ).forEach(function (el) {
+        el.style.opacity = "1";
+        el.style.transform = "none";
+        el.style.animation = "none";
+      });
+    } catch (e) {}
+  }
+
+  forceVisible();
 
   function enterApp(event) {
     if (event) event.preventDefault();
@@ -99,17 +167,9 @@ window.STREAMLIT_EMBED = true;
 
   window.streamlineEnterApp = enterApp;
 
-  // Re-apply after a tick in case the main script runs later.
-  setTimeout(function () {
-    document.querySelectorAll(".reveal").forEach(function (el) {
-      el.classList.add("visible");
-    });
-  }, 50);
-  setTimeout(function () {
-    document.querySelectorAll(".reveal").forEach(function (el) {
-      el.classList.add("visible");
-    });
-  }, 400);
+  setTimeout(forceVisible, 0);
+  setTimeout(forceVisible, 100);
+  setTimeout(forceVisible, 500);
 })();
 </script>
 """
@@ -164,7 +224,7 @@ def render_landing() -> None:
     )
 
     try:
-        components.html(_inline_landing_html(), height=7200, scrolling=True)
+        components.html(_inline_landing_html(), height=4800, scrolling=True)
     except Exception as exc:
         st.error("The landing page could not be loaded.")
         st.caption(str(exc))

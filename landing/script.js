@@ -10,11 +10,28 @@
   const preferred = stored || "light";
   root.setAttribute("data-theme", preferred);
 
-  // Streamlit embeds iframe content where scroll IO often never marks .reveal visible.
+  // Streamlit embeds iframe content where scroll IO / CSS animations often fail.
+  // Opacity animations with fill-mode:both can leave text permanently invisible.
   if (window.STREAMLIT_EMBED) {
     root.classList.add("streamlit-embed");
     document.body?.classList.add("streamlit-embed");
-    document.querySelectorAll(".reveal").forEach((el) => el.classList.add("visible"));
+    const unlock = () => {
+      document.querySelectorAll(".reveal").forEach((el) => {
+        el.classList.add("visible");
+        el.style.opacity = "1";
+        el.style.transform = "none";
+        el.style.animation = "none";
+      });
+      document
+        .querySelectorAll(".brand-mark, .hero-sub, .hero-cta, .chat-bubble, .rec-item, .eyebrow")
+        .forEach((el) => {
+          el.style.opacity = "1";
+          el.style.transform = "none";
+          el.style.animation = "none";
+        });
+    };
+    unlock();
+    requestAnimationFrame(unlock);
   }
 
   if (year) year.textContent = String(new Date().getFullYear());
@@ -28,6 +45,18 @@
   const onScroll = () => {
     if (!nav) return;
     nav.classList.toggle("scrolled", window.scrollY > 12);
+
+    // Subtle hero atmosphere parallax (skipped in embeds / reduced motion)
+    if (
+      !window.STREAMLIT_EMBED &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      const y = Math.min(window.scrollY, 420);
+      document.querySelectorAll(".hero-orb").forEach((orb, i) => {
+        const factor = (i + 1) * 0.012;
+        orb.style.translate = `0 ${y * factor}px`;
+      });
+    }
   };
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });
