@@ -47,23 +47,29 @@
     });
   });
 
-  // Resolve app links relative to Streamlit when opened via file:// or static server
+  // Resolve app links for static server, Streamlit local, and Streamlit Cloud
   const appBase = (() => {
     const { protocol, hostname, port } = window.location;
+    if (window.STREAMLIT_EMBED) return "";
     if (protocol === "file:") return "http://localhost:8501";
     if (port === "8501") return "";
+    if (hostname.endsWith("streamlit.app")) return "";
     if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return "http://localhost:8501";
+      return port === "8080" ? "http://localhost:8501" : "";
     }
-    return "..";
+    return "";
   })();
 
-  document.querySelectorAll('a[href^="../"]').forEach((anchor) => {
+  document.querySelectorAll('a[href^="../"], a[href*="app=1"]').forEach((anchor) => {
+    if (anchor.hasAttribute("data-enter-app")) return;
     const href = anchor.getAttribute("href") || "";
-    if (appBase === "") {
-      anchor.setAttribute("href", href.replace(/^\.\./, "") || "/?app=1");
-    } else if (appBase.startsWith("http")) {
-      const path = href.replace(/^\.\./, "") || "/";
+    if (window.STREAMLIT_EMBED || appBase === "") {
+      anchor.setAttribute("href", "?app=1");
+      anchor.setAttribute("data-enter-app", "1");
+      return;
+    }
+    if (appBase.startsWith("http")) {
+      const path = href.replace(/^\.\./, "") || "/?app=1";
       anchor.setAttribute("href", `${appBase}${path.startsWith("/") ? path : `/${path}`}`);
     }
   });
@@ -170,10 +176,19 @@
     }
 
     try {
-      const apiBase =
-        window.location.port === "8080" || window.location.port === "80"
-          ? ""
-          : "http://127.0.0.1:8080";
+      // Prefer local landing demo server; on Streamlit Cloud there is no :8080 API.
+      const onDemoServer =
+        window.location.port === "8080" ||
+        window.location.port === "80" ||
+        /landing/i.test(window.location.pathname);
+      const apiBase = onDemoServer && !window.STREAMLIT_EMBED ? "" : null;
+
+      if (apiBase === null) {
+        throw new Error(
+          "Live demo API isn’t available inside Streamlit Cloud. Click Enter Streamline to use the full app."
+        );
+      }
+
       const response = await fetch(
         `${apiBase}/api/recommend?q=${encodeURIComponent(query)}`
       );
@@ -187,6 +202,9 @@
     } catch (err) {
       setDemoLoading(false, err.message || "Something went wrong.");
       if (chatThread) {
+        const cloudHint = window.STREAMLIT_EMBED
+          ? `<p class="demo-hint"><a href="?app=1" data-enter-app="1" onclick="window.streamlineEnterApp && window.streamlineEnterApp(event)">Enter Streamline</a> to run full analysis.</p>`
+          : `<p class="demo-hint">Make sure the landing demo server is running (<code>python landing/server.py</code>), then try again.</p>`;
         chatThread.innerHTML = `
           <div class="chat-bubble chat-user">
             <span class="chat-label">You</span>
@@ -195,7 +213,7 @@
           <div class="chat-bubble chat-ai">
             <span class="chat-label">AI</span>
             <p class="demo-error">${escapeHtml(err.message || "Unable to analyze that ticker right now.")}</p>
-            <p class="demo-hint">Make sure the landing demo server is running, then try again.</p>
+            ${cloudHint}
           </div>
         `;
       }
