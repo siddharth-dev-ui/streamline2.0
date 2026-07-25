@@ -13,16 +13,22 @@ import streamlit as st
 
 from data.auth_store import (
     create_email_user,
+    create_remember_token,
     get_password_hash,
     get_user_by_email,
+    get_user_for_remember_token,
     init_auth_db,
     pop_oauth_state,
+    revoke_remember_tokens,
     save_oauth_state,
     upsert_oauth_user,
 )
 
 AUTH_USER_KEY = "auth_user"
 SESSION_TOKEN_KEY = "auth_session_token"
+PENDING_REMEMBER_KEY = "pending_remember_persist"
+CLEAR_REMEMBER_KEY = "pending_remember_clear"
+REMEMBER_STORAGE_KEY = "streamline_remember"
 
 
 def _secret(name: str, default: str = "") -> str:
@@ -148,14 +154,117 @@ def is_authenticated() -> bool:
     return get_current_user() is not None
 
 
-def set_current_user(user: dict[str, Any]) -> None:
+def set_current_user(user: dict[str, Any], *, remember: bool = True) -> None:
     st.session_state[AUTH_USER_KEY] = _public_user(user)
     st.session_state[SESSION_TOKEN_KEY] = secrets.token_urlsafe(24)
+    if remember and user.get("id"):
+        try:
+            token = create_remember_token(str(user["id"]))
+            st.session_state[PENDING_REMEMBER_KEY] = token
+        except Exception:
+            pass
 
 
 def logout_user() -> None:
+    user = get_current_user()
+    if user and user.get("id"):
+        try:
+            revoke_remember_tokens(str(user["id"]))
+        except Exception:
+            pass
     st.session_state.pop(AUTH_USER_KEY, None)
     st.session_state.pop(SESSION_TOKEN_KEY, None)
+    st.session_state[CLEAR_REMEMBER_KEY] = True
+    st.session_state["entered_app"] = False
+
+
+def remember_token_scripts() -> None:
+    """Persist or clear the remember-me token in the browser."""
+    import json
+
+    token = st.session_state.pop(PENDING_REMEMBER_KEY, None)
+    clear = st.session_state.pop(CLEAR_REMEMBER_KEY, None)
+    if not token and not clear:
+        return
+    if clear and not token:
+        st.html(
+            f"""
+<script>
+try {{ localStorage.removeItem({json.dumps(REMEMBER_STORAGE_KEY)}); }} catch (e) {{}}
+</script>
+"""
+        )
+        return
+    st.html(
+        f"""
+<script>
+try {{
+  localStorage.setItem({json.dumps(REMEMBER_STORAGE_KEY)}, {json.dumps(token)});
+}} catch (e) {{}}
+</script>
+"""
+    )
+
+
+def process_remember_resume() -> bool:
+    """
+    Resume a session from ?resume=<token> (set by browser localStorage bridge).
+
+    Returns True when login succeeded (caller should st.rerun()).
+    """
+    params = st.query_params
+    raw = params.get("resume")
+    if isinstance(raw, (list, tuple)):
+        raw = raw[0] if raw else None
+    if not raw:
+        return False
+
+    try:
+        if "resume" in st.query_params:
+            del st.query_params["resume"]
+    except Exception:
+        pass
+
+    user = get_user_for_remember_token(str(raw))
+    if not user:
+        st.session_state[CLEAR_REMEMBER_KEY] = True
+        return False
+
+    set_current_user(user, remember=True)
+    st.session_state["entered_app"] = True
+    return True
+
+
+def resume_bridge_script(*, force_app: bool = True) -> None:
+    """
+    If a remember token exists in localStorage, bounce into the app with ?resume=.
+    Runs on landing / auth so returning users skip the password form.
+    """
+    import json
+
+    if is_authenticated():
+        return
+    app_flag = "1" if force_app else "1"
+    st.html(
+        f"""
+<script>
+(function () {{
+  if (window.__streamlineResumeBridge) return;
+  window.__streamlineResumeBridge = true;
+  try {{
+    var token = localStorage.getItem({json.dumps(REMEMBER_STORAGE_KEY)});
+    if (!token) return;
+    var url = new URL(window.location.href);
+    if (url.searchParams.get("resume")) return;
+    url.searchParams.set("app", {json.dumps(app_flag)});
+    url.searchParams.set("resume", token);
+    url.searchParams.delete("landing");
+    window.location.replace(url.toString());
+  }} catch (e) {{}}
+}})();
+</script>
+"""
+    )
 
 
 def register_with_email(*, email: str, password: str, name: str = "") -> dict[str, Any]:

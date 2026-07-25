@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import secrets
 import sqlite3
 import time
 import uuid
@@ -41,6 +43,14 @@ def init_auth_db() -> None:
                 state TEXT PRIMARY KEY,
                 provider TEXT NOT NULL,
                 created_at REAL NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS remember_tokens (
+                token_hash TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                expires_at REAL NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
             );
             """
         )
@@ -220,3 +230,57 @@ def pop_oauth_state(state: str) -> str | None:
     if time.time() - float(row["created_at"]) > 3600:
         return None
     return str(row["provider"])
+
+
+def create_remember_token(user_id: str, *, days: int = 30) -> str:
+    """Create a remember-me token and return the raw token (show once)."""
+    init_auth_db()
+    raw = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    now = time.time()
+    expires = now + days * 86400
+    with _connect() as conn:
+        conn.execute(
+            "DELETE FROM remember_tokens WHERE user_id = ? OR expires_at < ?",
+            (user_id, now),
+        )
+        conn.execute(
+            """
+            INSERT INTO remember_tokens (token_hash, user_id, created_at, expires_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (token_hash, user_id, now, expires),
+        )
+    return raw
+
+
+def get_user_for_remember_token(raw_token: str) -> dict[str, Any] | None:
+    """Validate a remember-me token and return the user if valid."""
+    init_auth_db()
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    now = time.time()
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT user_id, expires_at FROM remember_tokens
+            WHERE token_hash = ? LIMIT 1
+            """,
+            (token_hash,),
+        ).fetchone()
+        if row is None:
+            return None
+        if float(row["expires_at"]) < now:
+            conn.execute("DELETE FROM remember_tokens WHERE token_hash = ?", (token_hash,))
+            return None
+        user_id = str(row["user_id"])
+    return get_user_by_id(user_id)
+
+
+def revoke_remember_tokens(user_id: str | None = None, *, raw_token: str | None = None) -> None:
+    init_auth_db()
+    with _connect() as conn:
+        if raw_token:
+            token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+            conn.execute("DELETE FROM remember_tokens WHERE token_hash = ?", (token_hash,))
+        if user_id:
+            conn.execute("DELETE FROM remember_tokens WHERE user_id = ?", (user_id,))

@@ -13,6 +13,7 @@ from utils.auth import (
     google_configured,
     login_with_email,
     register_with_email,
+    remember_token_scripts,
 )
 from utils.theme import get_theme
 
@@ -67,6 +68,10 @@ def _auth_styles(theme: dict) -> str:
         height: 1px;
         background: {theme["border"]};
       }}
+      @keyframes onAutoFillStart {{ from {{/**/}} to {{/**/}} }}
+      input:-webkit-autofill {{
+        animation-name: onAutoFillStart;
+      }}
     </style>
     """
 
@@ -102,6 +107,8 @@ def _autofill_bridge() -> None:
 (function () {
   if (window.__streamlineAuthAutofill) return;
   window.__streamlineAuthAutofill = true;
+  var pageLoadedAt = Date.now();
+  var typed = false;
 
   function notifyReact(el) {
     if (!el) return;
@@ -142,13 +149,18 @@ def _autofill_bridge() -> None:
   }
 
   function isSignInMode(doc) {
-    var checked = doc.querySelector('[role="radiogroup"] input:checked, [data-baseweb="radio"] input:checked');
-    if (checked) {
-      var label = (checked.parentElement && checked.parentElement.textContent) || "";
-      if (/create account/i.test(label)) return false;
-      if (/sign in/i.test(label)) return true;
+    var labels = Array.prototype.slice.call(doc.querySelectorAll("label, p, span, div"));
+    for (var i = 0; i < labels.length; i++) {
+      var el = labels[i];
+      if (!/create account/i.test((el.textContent || "").trim())) continue;
+      var input = el.querySelector("input") || (el.previousElementSibling && el.previousElementSibling.querySelector && el.previousElementSibling.querySelector("input"));
+      // Heuristic: if Create account radio looks selected via aria/checked nearby, skip.
     }
-    // Default radio order: Sign in first.
+    var checkedTexts = Array.prototype.slice
+      .call(doc.querySelectorAll('[data-baseweb="radio"] [aria-checked="true"], [role="radio"][aria-checked="true"]'))
+      .map(function (n) { return (n.textContent || n.getAttribute("aria-label") || "").toLowerCase(); })
+      .join(" ");
+    if (/create account/.test(checkedTexts)) return false;
     return true;
   }
 
@@ -168,12 +180,21 @@ def _autofill_bridge() -> None:
     return el.dataset.slAutofilled === "1";
   }
 
-  function markAutofillListeners(doc) {
+  function looksLikeAutofill(fields) {
+    if (isAutofilled(fields.email) || isAutofilled(fields.password)) return true;
+    // Browser managers often fill both fields shortly after load without key events.
+    if (!typed && Date.now() - pageLoadedAt < 4000) return true;
+    return false;
+  }
+
+  function bindTypingGuards(doc) {
     var fields = findFields(doc);
     if (!fields) return;
     [fields.email, fields.password].forEach(function (el) {
-      if (!el || el.dataset.slAutofillBound === "1") return;
-      el.dataset.slAutofillBound = "1";
+      if (!el || el.dataset.slTypeGuard === "1") return;
+      el.dataset.slTypeGuard = "1";
+      el.setAttribute("autocomplete", el.type === "password" ? "current-password" : "username");
+      el.addEventListener("keydown", function () { typed = true; });
       el.addEventListener("animationstart", function (event) {
         if (event && /onAutoFillStart/i.test(event.animationName || "")) {
           el.dataset.slAutofilled = "1";
@@ -184,17 +205,14 @@ def _autofill_bridge() -> None:
 
   function tryAutofillLogin(doc) {
     if (!isSignInMode(doc)) return false;
-    markAutofillListeners(doc);
+    bindTypingGuards(doc);
     var fields = findFields(doc);
     if (!fields) return false;
     var email = (fields.email.value || "").trim();
     var password = fields.password.value || "";
     if (!email || password.length < 8) return false;
-    // Only auto-submit when the browser password manager filled the fields.
-    if (!isAutofilled(fields.email) && !isAutofilled(fields.password)) return false;
+    if (!looksLikeAutofill(fields)) return false;
 
-    fields.email.setAttribute("autocomplete", "username");
-    fields.password.setAttribute("autocomplete", "current-password");
     notifyReact(fields.email);
     notifyReact(fields.password);
 
@@ -202,7 +220,7 @@ def _autofill_bridge() -> None:
     if (!btn) return false;
     if (btn.getAttribute("data-sl-autofill-clicked") === "1") return true;
     btn.setAttribute("data-sl-autofill-clicked", "1");
-    setTimeout(function () { btn.click(); }, 150);
+    setTimeout(function () { btn.click(); }, 200);
     return true;
   }
 
@@ -222,16 +240,8 @@ def _autofill_bridge() -> None:
   var tries = 0;
   var timer = setInterval(function () {
     tries += 1;
-    if (scan() || tries > 24) clearInterval(timer);
-  }, 300);
-
-  // Chrome autofill sometimes paints without firing input events.
-  try {
-    document.addEventListener("animationstart", function (event) {
-      if (!event || !event.animationName) return;
-      if (/onAutoFillStart/i.test(event.animationName)) scan();
-    }, true);
-  } catch (e) {}
+    if (scan() || tries > 30) clearInterval(timer);
+  }, 250);
 })();
 </script>
 """
@@ -275,7 +285,6 @@ def render_auth_page() -> None:
         key="auth_mode_radio",
     )
 
-    # Non-form inputs so browser autofill can sync into Streamlit and auto-submit.
     name = ""
     if mode == "Create account":
         name = st.text_input("Name", placeholder="Your name", key="auth_name")
@@ -305,6 +314,7 @@ def render_auth_page() -> None:
             else:
                 login_with_email(email=email, password=password)
             st.session_state["entered_app"] = True
+            remember_token_scripts()
             st.rerun()
         except ValueError as exc:
             st.error(str(exc))

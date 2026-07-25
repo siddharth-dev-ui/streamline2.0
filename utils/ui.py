@@ -55,28 +55,24 @@ def render_sidebar() -> None:
                 set_page(label)
                 st.rerun()
 
-        st.markdown("---")
-
         st.markdown('<div class="sidebar-section">Appearance</div>', unsafe_allow_html=True)
-        st.markdown(
-            f'<div class="theme-toggle-label">Mode: <strong>{theme.title()}</strong></div>',
-            unsafe_allow_html=True,
-        )
-
-        toggle_label = "Light" if theme == "dark" else "Dark"
+        toggle_label = "Switch to light" if theme == "dark" else "Switch to dark"
         if st.button(toggle_label, key="theme_toggle", use_container_width=True):
             toggle_theme()
             st.rerun()
 
-        st.markdown("---")
         from utils.auth import get_current_user, logout_user
 
         user = get_current_user()
         if user:
+            st.markdown('<div class="sidebar-section">Account</div>', unsafe_allow_html=True)
             label = user.get("name") or user.get("email") or "Signed in"
             st.caption(label)
             if st.button("Sign out", key="auth_sign_out", use_container_width=True):
                 logout_user()
+                from utils.auth import remember_token_scripts
+
+                remember_token_scripts()
                 st.rerun()
 
 
