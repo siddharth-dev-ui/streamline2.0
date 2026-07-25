@@ -4,6 +4,7 @@ import streamlit as st
 
 THEME_KEY = "theme"
 DEFAULT_THEME = "dark"
+THEME_MIGRATION_KEY = "_theme_dark_default_v2"
 
 FONT_FAMILY = "Montserrat, sans-serif"
 DISPLAY_FONT = '"Instrument Serif", Georgia, serif'
@@ -84,7 +85,11 @@ THEMES = {
 
 def init_theme() -> str:
     """Initialize theme in session state."""
-    if THEME_KEY not in st.session_state:
+    # One-time migration: older sessions defaulted to light.
+    if THEME_MIGRATION_KEY not in st.session_state:
+        st.session_state[THEME_KEY] = DEFAULT_THEME
+        st.session_state[THEME_MIGRATION_KEY] = True
+    elif THEME_KEY not in st.session_state:
         st.session_state[THEME_KEY] = DEFAULT_THEME
     return st.session_state[THEME_KEY]
 
