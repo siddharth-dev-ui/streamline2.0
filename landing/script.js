@@ -6,7 +6,15 @@
   const mobileMenu = document.getElementById("mobileMenu");
   const year = document.getElementById("year");
 
-  const stored = localStorage.getItem("streamline-landing-theme");
+  // v2 = dark is the product default; migrate once from the old light default.
+  const THEME_STORE = "streamline-landing-theme";
+  const THEME_VERSION_KEY = "streamline-landing-theme-v";
+  const THEME_VERSION = "2";
+  if (localStorage.getItem(THEME_VERSION_KEY) !== THEME_VERSION) {
+    localStorage.setItem(THEME_STORE, "dark");
+    localStorage.setItem(THEME_VERSION_KEY, THEME_VERSION);
+  }
+  const stored = localStorage.getItem(THEME_STORE);
   const preferred = stored || "dark";
   root.setAttribute("data-theme", preferred);
 
@@ -40,6 +48,7 @@
     const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
     root.setAttribute("data-theme", next);
     localStorage.setItem("streamline-landing-theme", next);
+    localStorage.setItem("streamline-landing-theme-v", "2");
   });
 
   const onScroll = () => {
