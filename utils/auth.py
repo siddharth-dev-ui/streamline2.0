@@ -21,6 +21,7 @@ from data.auth_store import (
     pop_oauth_state,
     revoke_remember_tokens,
     save_oauth_state,
+    update_email_password,
     upsert_oauth_user,
 )
 
@@ -270,15 +271,29 @@ def resume_bridge_script(*, force_app: bool = True) -> None:
 def register_with_email(*, email: str, password: str, name: str = "") -> dict[str, Any]:
     init_auth_db()
     email_norm = email.strip().lower()
+    password = (password or "").strip("\r\n")
     if "@" not in email_norm or "." not in email_norm.split("@")[-1]:
         raise ValueError("Enter a valid email address.")
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters.")
-    user = create_email_user(
-        email=email_norm,
-        password_hash=_hash_password(password),
-        name=name or email_norm.split("@")[0],
-    )
+
+    existing = get_user_by_email(email_norm)
+    password_hash = _hash_password(password)
+    if existing:
+        # Allow recreating / resetting the password for the same email.
+        # (Common after Streamlit Cloud redeploys wipe the local SQLite DB,
+        # or when a previous autofill submit left a confusing failed login.)
+        user = update_email_password(
+            email=email_norm,
+            password_hash=password_hash,
+            name=name or existing.get("name") or email_norm.split("@")[0],
+        )
+    else:
+        user = create_email_user(
+            email=email_norm,
+            password_hash=password_hash,
+            name=name or email_norm.split("@")[0],
+        )
     set_current_user(user)
     return get_current_user()  # type: ignore[return-value]
 
@@ -286,14 +301,30 @@ def register_with_email(*, email: str, password: str, name: str = "") -> dict[st
 def login_with_email(*, email: str, password: str) -> dict[str, Any]:
     init_auth_db()
     email_norm = email.strip().lower()
-    stored = get_password_hash(email_norm)
-    if not stored or not _verify_password(password, stored):
-        raise ValueError("Incorrect email or password.")
+    password = (password or "").strip("\r\n")
+    if not email_norm or not password:
+        raise ValueError("Enter your email and password.")
+    if "@" not in email_norm:
+        raise ValueError("Enter a valid email address.")
+
     user = get_user_by_email(email_norm)
     if not user:
-        raise ValueError("Incorrect email or password.")
-    if user.get("provider") != "email" and not user.get("has_password"):
-        raise ValueError("That email uses social sign-in. Continue with Google or Discord.")
+        raise ValueError(
+            "No account found for that email. Choose “Create account” to register "
+            "(or recreate it if the app was redeployed)."
+        )
+
+    stored = get_password_hash(email_norm)
+    if not stored:
+        raise ValueError(
+            "That email was signed up with Google/Discord and has no password. "
+            "Use “Create account” with this email to set a password, or continue with social sign-in."
+        )
+    if not _verify_password(password, stored):
+        raise ValueError(
+            "Incorrect password. Try again, or use “Create account” with this email to reset it."
+        )
+
     set_current_user(user)
     return get_current_user()  # type: ignore[return-value]
 

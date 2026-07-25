@@ -115,18 +115,49 @@ def create_email_user(*, email: str, password_hash: str, name: str = "") -> dict
         raise ValueError("An account with that email already exists.")
     now = time.time()
     user_id = str(uuid.uuid4())
-    with _connect() as conn:
-        conn.execute(
-            """
-            INSERT INTO users (id, email, password_hash, name, avatar_url, provider, provider_id, created_at, updated_at)
-            VALUES (?, ?, ?, ?, '', 'email', NULL, ?, ?)
-            """,
-            (user_id, email_norm, password_hash, name.strip(), now, now),
-        )
+    try:
+        with _connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO users (id, email, password_hash, name, avatar_url, provider, provider_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, '', 'email', NULL, ?, ?)
+                """,
+                (user_id, email_norm, password_hash, name.strip(), now, now),
+            )
+    except sqlite3.Error as exc:
+        raise RuntimeError(
+            "Could not save your account. The app storage may be read-only — try again or contact the host."
+        ) from exc
     user = get_user_by_id(user_id)
     if not user:
         raise RuntimeError("Failed to create user.")
     return user
+
+
+def update_email_password(*, email: str, password_hash: str, name: str = "") -> dict[str, Any]:
+    """Set / reset the password for an existing email account."""
+    init_auth_db()
+    email_norm = email.strip().lower()
+    user = get_user_by_email(email_norm)
+    if not user:
+        raise ValueError("No account found for that email.")
+    now = time.time()
+    with _connect() as conn:
+        conn.execute(
+            """
+            UPDATE users
+            SET password_hash = ?,
+                name = CASE WHEN ? != '' THEN ? ELSE name END,
+                provider = 'email',
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (password_hash, name.strip(), name.strip(), now, user["id"]),
+        )
+    updated = get_user_by_id(user["id"])
+    if not updated:
+        raise RuntimeError("Failed to update password.")
+    return updated
 
 
 def upsert_oauth_user(

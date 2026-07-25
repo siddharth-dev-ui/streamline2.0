@@ -68,9 +68,12 @@ def _auth_styles(theme: dict) -> str:
         height: 1px;
         background: {theme["border"]};
       }}
-      @keyframes onAutoFillStart {{ from {{/**/}} to {{/**/}} }}
-      input:-webkit-autofill {{
-        animation-name: onAutoFillStart;
+      .sl-auth-hint {{
+        color: {theme["text_muted"]};
+        font-size: 0.82rem;
+        text-align: center;
+        margin: 0.75rem 0 0;
+        line-height: 1.45;
       }}
     </style>
     """
@@ -96,163 +99,10 @@ def _redirect(url: str) -> None:
     )
 
 
-def _autofill_bridge() -> None:
-    """
-    Detect browser password autofill, sync values into Streamlit widgets,
-    then click Sign in so the user lands in the app without an extra click.
-    """
-    st.html(
-        """
-<script>
-(function () {
-  if (window.__streamlineAuthAutofill) return;
-  window.__streamlineAuthAutofill = true;
-  var pageLoadedAt = Date.now();
-  var typed = false;
-
-  function notifyReact(el) {
-    if (!el) return;
-    try {
-      var tracker = el._valueTracker;
-      if (tracker) tracker.setValue("");
-    } catch (e) {}
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-  }
-
-  function findFields(doc) {
-    var inputs = Array.prototype.slice.call(doc.querySelectorAll("input"));
-    var password = inputs.find(function (el) {
-      return el.type === "password" && el.offsetParent !== null;
-    });
-    if (!password) return null;
-    var email = null;
-    for (var i = 0; i < inputs.length; i++) {
-      var el = inputs[i];
-      if (el === password) continue;
-      if (el.offsetParent === null) continue;
-      var type = (el.type || "text").toLowerCase();
-      var auto = (el.autocomplete || "").toLowerCase();
-      var name = ((el.name || "") + " " + (el.id || "") + " " + (el.placeholder || "")).toLowerCase();
-      if (
-        type === "email" ||
-        type === "text" ||
-        auto.indexOf("username") >= 0 ||
-        auto.indexOf("email") >= 0 ||
-        name.indexOf("email") >= 0
-      ) {
-        email = el;
-        break;
-      }
-    }
-    return email && password ? { email: email, password: password } : null;
-  }
-
-  function isSignInMode(doc) {
-    var labels = Array.prototype.slice.call(doc.querySelectorAll("label, p, span, div"));
-    for (var i = 0; i < labels.length; i++) {
-      var el = labels[i];
-      if (!/create account/i.test((el.textContent || "").trim())) continue;
-      var input = el.querySelector("input") || (el.previousElementSibling && el.previousElementSibling.querySelector && el.previousElementSibling.querySelector("input"));
-      // Heuristic: if Create account radio looks selected via aria/checked nearby, skip.
-    }
-    var checkedTexts = Array.prototype.slice
-      .call(doc.querySelectorAll('[data-baseweb="radio"] [aria-checked="true"], [role="radio"][aria-checked="true"]'))
-      .map(function (n) { return (n.textContent || n.getAttribute("aria-label") || "").toLowerCase(); })
-      .join(" ");
-    if (/create account/.test(checkedTexts)) return false;
-    return true;
-  }
-
-  function findSignInButton(doc) {
-    var buttons = Array.prototype.slice.call(doc.querySelectorAll("button"));
-    return buttons.find(function (btn) {
-      var text = (btn.textContent || "").trim().toLowerCase();
-      return text === "sign in" && !btn.disabled;
-    });
-  }
-
-  function isAutofilled(el) {
-    if (!el) return false;
-    try {
-      if (el.matches(":-webkit-autofill") || el.matches(":autofill")) return true;
-    } catch (e) {}
-    return el.dataset.slAutofilled === "1";
-  }
-
-  function looksLikeAutofill(fields) {
-    if (isAutofilled(fields.email) || isAutofilled(fields.password)) return true;
-    // Browser managers often fill both fields shortly after load without key events.
-    if (!typed && Date.now() - pageLoadedAt < 4000) return true;
-    return false;
-  }
-
-  function bindTypingGuards(doc) {
-    var fields = findFields(doc);
-    if (!fields) return;
-    [fields.email, fields.password].forEach(function (el) {
-      if (!el || el.dataset.slTypeGuard === "1") return;
-      el.dataset.slTypeGuard = "1";
-      el.setAttribute("autocomplete", el.type === "password" ? "current-password" : "username");
-      el.addEventListener("keydown", function () { typed = true; });
-      el.addEventListener("animationstart", function (event) {
-        if (event && /onAutoFillStart/i.test(event.animationName || "")) {
-          el.dataset.slAutofilled = "1";
-        }
-      });
-    });
-  }
-
-  function tryAutofillLogin(doc) {
-    if (!isSignInMode(doc)) return false;
-    bindTypingGuards(doc);
-    var fields = findFields(doc);
-    if (!fields) return false;
-    var email = (fields.email.value || "").trim();
-    var password = fields.password.value || "";
-    if (!email || password.length < 8) return false;
-    if (!looksLikeAutofill(fields)) return false;
-
-    notifyReact(fields.email);
-    notifyReact(fields.password);
-
-    var btn = findSignInButton(doc);
-    if (!btn) return false;
-    if (btn.getAttribute("data-sl-autofill-clicked") === "1") return true;
-    btn.setAttribute("data-sl-autofill-clicked", "1");
-    setTimeout(function () { btn.click(); }, 200);
-    return true;
-  }
-
-  function scan() {
-    var docs = [document];
-    try {
-      if (window.parent && window.parent.document) docs.push(window.parent.document);
-    } catch (e) {}
-    for (var i = 0; i < docs.length; i++) {
-      try {
-        if (tryAutofillLogin(docs[i])) return true;
-      } catch (err) {}
-    }
-    return false;
-  }
-
-  var tries = 0;
-  var timer = setInterval(function () {
-    tries += 1;
-    if (scan() || tries > 30) clearInterval(timer);
-  }, 250);
-})();
-</script>
-"""
-    )
-
-
 def render_auth_page() -> None:
     """Render email/password + social sign-in."""
     theme = get_theme()
     st.markdown(_auth_styles(theme), unsafe_allow_html=True)
-    _autofill_bridge()
 
     pending = st.session_state.pop("pending_oauth_redirect", None)
     if pending:
@@ -288,6 +138,7 @@ def render_auth_page() -> None:
     name = ""
     if mode == "Create account":
         name = st.text_input("Name", placeholder="Your name", key="auth_name")
+        st.caption("Already registered? Creating again with the same email resets your password.")
     email = st.text_input(
         "Email",
         placeholder="you@example.com",
@@ -308,18 +159,22 @@ def render_auth_page() -> None:
     )
 
     if submitted:
-        try:
-            if mode == "Create account":
-                register_with_email(email=email, password=password, name=name)
-            else:
-                login_with_email(email=email, password=password)
-            st.session_state["entered_app"] = True
-            remember_token_scripts()
-            st.rerun()
-        except ValueError as exc:
-            st.error(str(exc))
-        except Exception:
-            st.error("Something went wrong. Please try again.")
+        if not (email or "").strip() or not (password or "").strip():
+            st.error("Enter your email and password first (click the fields if the browser autofilled them).")
+        else:
+            try:
+                if mode == "Create account":
+                    register_with_email(email=email, password=password, name=name)
+                    st.session_state["auth_flash_success"] = "Account ready — you’re signed in."
+                else:
+                    login_with_email(email=email, password=password)
+                st.session_state["entered_app"] = True
+                remember_token_scripts()
+                st.rerun()
+            except ValueError as exc:
+                st.error(str(exc))
+            except Exception as exc:
+                st.error(f"Something went wrong saving your account: {exc}")
 
     st.markdown('<div class="sl-auth-divider">or continue with</div>', unsafe_allow_html=True)
 
@@ -355,6 +210,16 @@ def render_auth_page() -> None:
                 st.error(str(exc))
         if not discord_ready:
             st.caption("Add Discord OAuth secrets to enable.")
+
+    st.markdown(
+        """
+        <p class="sl-auth-hint">
+          Tip: after a Streamlit Cloud redeploy, accounts can reset. Use
+          <strong>Create account</strong> with the same email to set your password again.
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if get_current_user():
         st.info("You are signed in.")
