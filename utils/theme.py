@@ -3,7 +3,7 @@
 import streamlit as st
 
 THEME_KEY = "theme"
-DEFAULT_THEME = "light"
+DEFAULT_THEME = "dark"
 
 FONT_FAMILY = "Montserrat, sans-serif"
 DISPLAY_FONT = '"Instrument Serif", Georgia, serif'
@@ -430,11 +430,12 @@ def _build_css(t: dict) -> str:
     .page-title {{ font-size: 1.95rem; font-style: italic; }}
 
     .sidebar-brand {{
-        font-size: 1.35rem;
+        font-size: 1.15rem;
         font-style: italic;
-        padding: 0.2rem 0 1rem;
+        padding: 0.05rem 0 0.45rem;
         border-bottom: 1px solid {t["border"]};
-        margin-bottom: 1rem;
+        margin-bottom: 0.45rem;
+        line-height: 1.1;
         background: linear-gradient(135deg, {t["text"]} 20%, {t["accent"]} 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -442,11 +443,18 @@ def _build_css(t: dict) -> str:
     }}
 
     .sidebar-section {{
-        font-size: 0.72rem;
+        font-size: 0.65rem;
         font-weight: 600;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        margin-bottom: 0.35rem;
+        margin: 0.15rem 0 0.2rem;
+        line-height: 1.2;
+    }}
+
+    .theme-toggle-label {{
+        font-size: 0.78rem !important;
+        margin: 0 0 0.2rem !important;
+        line-height: 1.25;
     }}
 
     .search-label {{
@@ -584,25 +592,64 @@ def _build_css(t: dict) -> str:
         filter: brightness(0.97);
     }}
 
+    /* Sidebar — compact so nav + theme + account fit without scrolling */
+    [data-testid="stSidebar"] > div:first-child,
+    [data-testid="stSidebarContent"],
+    [data-testid="stSidebarUserContent"] {{
+        padding-top: 0.55rem !important;
+        padding-bottom: 0.55rem !important;
+    }}
+
+    [data-testid="stSidebarUserContent"] {{
+        overflow: hidden !important;
+    }}
+
+    [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {{
+        gap: 0.2rem !important;
+    }}
+
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {{
+        margin-bottom: 0 !important;
+    }}
+
+    [data-testid="stSidebar"] hr {{
+        margin: 0.35rem 0 !important;
+    }}
+
+    [data-testid="stSidebar"] .stCaption,
+    [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {{
+        margin: 0.1rem 0 0.15rem !important;
+        font-size: 0.72rem !important;
+        line-height: 1.25 !important;
+    }}
+
+    [data-testid="stSidebar"] .stCaption p,
+    [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {{
+        font-size: 0.72rem !important;
+        line-height: 1.25 !important;
+    }}
+
     /* Sidebar nav — high-contrast active pill */
     [data-testid="stSidebar"] .stButton {{
-        margin-bottom: 0.28rem !important;
+        margin-bottom: 0.08rem !important;
     }}
 
     [data-testid="stSidebar"] .stButton > button,
     [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"],
     [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {{
-        border-radius: 12px !important;
-        min-height: 2.55rem !important;
+        border-radius: 10px !important;
+        min-height: 1.95rem !important;
+        height: 1.95rem !important;
         justify-content: flex-start !important;
         text-align: left !important;
-        padding: 0.55rem 0.95rem !important;
+        padding: 0.2rem 0.7rem !important;
         box-shadow: none !important;
         border: 1px solid transparent !important;
         background: transparent !important;
         color: {t["text_muted"]} !important;
         -webkit-text-fill-color: {t["text_muted"]} !important;
         font-weight: 500 !important;
+        font-size: 0.84rem !important;
         letter-spacing: 0.01em !important;
         transition:
             background 0.2s ease,

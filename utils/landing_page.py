@@ -124,8 +124,8 @@ html.streamlit-embed .pulse {
 """
 
     html = html.replace(
-        '<html lang="en" data-theme="light">',
-        '<html lang="en" data-theme="light" class="streamlit-embed">',
+        '<html lang="en" data-theme="dark">',
+        '<html lang="en" data-theme="dark" class="streamlit-embed">',
     )
     html = html.replace(
         '<link rel="stylesheet" href="styles.css" />',

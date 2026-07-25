@@ -7,7 +7,7 @@
   const year = document.getElementById("year");
 
   const stored = localStorage.getItem("streamline-landing-theme");
-  const preferred = stored || "light";
+  const preferred = stored || "dark";
   root.setAttribute("data-theme", preferred);
 
   // Streamlit embeds iframe content where scroll IO / CSS animations often fail.
