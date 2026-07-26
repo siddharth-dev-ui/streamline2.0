@@ -149,7 +149,7 @@ def render_home() -> None:
         render_research_result(st.session_state.research_result)
 
     st.markdown("### Market news")
-    st.caption("Latest headlines and ticker analysis — formerly the News tab.")
+    st.caption("Latest headlines and market analysis.")
     try:
         with st.spinner("Loading market news…"):
             render_news_feed(include_ticker_analysis=True)

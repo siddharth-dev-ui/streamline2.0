@@ -108,6 +108,23 @@ def get_password_hash(email: str) -> str | None:
     return row["password_hash"]
 
 
+def get_user_auth_payload(user_id: str) -> dict[str, Any] | None:
+    """Full auth fields for building a durable remember token."""
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM users WHERE id = ? LIMIT 1", (user_id,)).fetchone()
+    if row is None:
+        return None
+    return {
+        "id": row["id"],
+        "email": row["email"],
+        "name": row["name"] or "",
+        "avatar_url": row["avatar_url"] or "",
+        "provider": row["provider"] or "email",
+        "provider_id": row["provider_id"],
+        "password_hash": row["password_hash"],
+    }
+
+
 def create_email_user(*, email: str, password_hash: str, name: str = "") -> dict[str, Any]:
     init_auth_db()
     email_norm = email.strip().lower()
@@ -131,6 +148,74 @@ def create_email_user(*, email: str, password_hash: str, name: str = "") -> dict
     user = get_user_by_id(user_id)
     if not user:
         raise RuntimeError("Failed to create user.")
+    return user
+
+
+def upsert_user_record(
+    *,
+    user_id: str,
+    email: str | None,
+    password_hash: str | None,
+    name: str = "",
+    avatar_url: str = "",
+    provider: str = "email",
+    provider_id: str | None = None,
+) -> dict[str, Any]:
+    """Insert or update a user row (used to restore accounts after ephemeral disk wipes)."""
+    init_auth_db()
+    now = time.time()
+    email_norm = (email or "").strip().lower() or None
+    existing = get_user_by_id(user_id) or (get_user_by_email(email_norm) if email_norm else None)
+    if existing:
+        with _connect() as conn:
+            conn.execute(
+                """
+                UPDATE users
+                SET email = COALESCE(?, email),
+                    password_hash = COALESCE(?, password_hash),
+                    name = CASE WHEN ? != '' THEN ? ELSE name END,
+                    avatar_url = CASE WHEN ? != '' THEN ? ELSE avatar_url END,
+                    provider = ?,
+                    provider_id = COALESCE(?, provider_id),
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    email_norm,
+                    password_hash,
+                    name,
+                    name,
+                    avatar_url,
+                    avatar_url,
+                    provider,
+                    provider_id,
+                    now,
+                    existing["id"],
+                ),
+            )
+        user = get_user_by_id(existing["id"])
+    else:
+        with _connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO users (id, email, password_hash, name, avatar_url, provider, provider_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user_id,
+                    email_norm,
+                    password_hash,
+                    name.strip(),
+                    avatar_url,
+                    provider,
+                    provider_id,
+                    now,
+                    now,
+                ),
+            )
+        user = get_user_by_id(user_id)
+    if not user:
+        raise RuntimeError("Failed to restore user.")
     return user
 
 

@@ -95,8 +95,6 @@ def is_profile_complete(profile: dict[str, Any] | None) -> bool:
         "risk_tolerance",
         "investment_horizon",
         "experience",
-        "interest_in_etfs",
-        "interest_in_dividends",
     )
     return all(profile.get(field) is not None for field in required)
 

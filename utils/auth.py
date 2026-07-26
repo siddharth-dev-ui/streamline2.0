@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
+import json
 import secrets
+import time
 from typing import Any
 from urllib.parse import urlencode
 
@@ -15,7 +18,9 @@ from data.auth_store import (
     create_email_user,
     create_remember_token,
     get_password_hash,
+    get_user_auth_payload,
     get_user_by_email,
+    get_user_by_id,
     get_user_for_remember_token,
     init_auth_db,
     pop_oauth_state,
@@ -23,6 +28,7 @@ from data.auth_store import (
     save_oauth_state,
     update_email_password,
     upsert_oauth_user,
+    upsert_user_record,
 )
 
 AUTH_USER_KEY = "auth_user"
@@ -160,10 +166,12 @@ def set_current_user(user: dict[str, Any], *, remember: bool = True) -> None:
     st.session_state[SESSION_TOKEN_KEY] = secrets.token_urlsafe(24)
     if remember and user.get("id"):
         try:
-            token = create_remember_token(str(user["id"]))
-            st.session_state[PENDING_REMEMBER_KEY] = token
+            st.session_state[PENDING_REMEMBER_KEY] = _issue_durable_remember_token(str(user["id"]))
         except Exception:
-            pass
+            try:
+                st.session_state[PENDING_REMEMBER_KEY] = create_remember_token(str(user["id"]))
+            except Exception:
+                pass
 
 
 def logout_user() -> None:
@@ -176,13 +184,123 @@ def logout_user() -> None:
     st.session_state.pop(AUTH_USER_KEY, None)
     st.session_state.pop(SESSION_TOKEN_KEY, None)
     st.session_state[CLEAR_REMEMBER_KEY] = True
-    st.session_state["entered_app"] = False
+    # Stay in the product shell — show auth, not marketing.
+    st.session_state["entered_app"] = True
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(data: str) -> bytes:
+    padding = "=" * (-len(data) % 4)
+    return base64.urlsafe_b64decode(data + padding)
+
+
+def _issue_durable_remember_token(user_id: str, *, days: int = 60) -> str:
+    """
+    Signed remember token that survives Streamlit Cloud filesystem wipes.
+
+    Payload is HMAC-signed with AUTH_COOKIE_SECRET and stored in localStorage.
+    """
+    payload = get_user_auth_payload(user_id)
+    if not payload:
+        raise ValueError("User not found")
+    body = {
+        "uid": payload["id"],
+        "email": payload.get("email") or "",
+        "name": payload.get("name") or "",
+        "avatar": payload.get("avatar_url") or "",
+        "provider": payload.get("provider") or "email",
+        "pid": payload.get("provider_id"),
+        "ph": payload.get("password_hash") or "",
+        "exp": int(time.time()) + days * 86400,
+    }
+    body_raw = _b64url(json.dumps(body, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    sig = _b64url(
+        hmac.new(_cookie_secret().encode("utf-8"), body_raw.encode("ascii"), hashlib.sha256).digest()
+    )
+    return f"v1.{body_raw}.{sig}"
+
+
+def _verify_durable_remember_token(token: str) -> dict[str, Any] | None:
+    try:
+        version, body_raw, sig = token.split(".", 2)
+    except ValueError:
+        return None
+    if version != "v1":
+        return None
+    expected = _b64url(
+        hmac.new(_cookie_secret().encode("utf-8"), body_raw.encode("ascii"), hashlib.sha256).digest()
+    )
+    if not hmac.compare_digest(expected, sig):
+        return None
+    try:
+        body = json.loads(_b64url_decode(body_raw).decode("utf-8"))
+    except Exception:
+        return None
+    if int(body.get("exp") or 0) < int(time.time()):
+        return None
+    if not body.get("uid"):
+        return None
+    return body
+
+
+def process_remember_resume() -> bool:
+    """
+    Resume a session from ?resume=<token> (set by browser localStorage bridge).
+
+    Returns True when login succeeded (caller should st.rerun()).
+    """
+    params = st.query_params
+    raw = params.get("resume")
+    if isinstance(raw, (list, tuple)):
+        raw = raw[0] if raw else None
+    if not raw:
+        return False
+
+    try:
+        if "resume" in st.query_params:
+            del st.query_params["resume"]
+    except Exception:
+        pass
+
+    raw = str(raw)
+    user = None
+
+    # Prefer durable signed tokens (survive Cloud redeploys).
+    claims = _verify_durable_remember_token(raw)
+    if claims:
+        user = get_user_by_id(str(claims["uid"])) or (
+            get_user_by_email(str(claims["email"])) if claims.get("email") else None
+        )
+        if not user:
+            try:
+                user = upsert_user_record(
+                    user_id=str(claims["uid"]),
+                    email=claims.get("email") or None,
+                    password_hash=claims.get("ph") or None,
+                    name=str(claims.get("name") or ""),
+                    avatar_url=str(claims.get("avatar") or ""),
+                    provider=str(claims.get("provider") or "email"),
+                    provider_id=claims.get("pid"),
+                )
+            except Exception:
+                user = None
+    else:
+        user = get_user_for_remember_token(raw)
+
+    if not user:
+        st.session_state[CLEAR_REMEMBER_KEY] = True
+        return False
+
+    set_current_user(user, remember=True)
+    st.session_state["entered_app"] = True
+    return True
 
 
 def remember_token_scripts() -> None:
     """Persist or clear the remember-me token in the browser."""
-    import json
-
     token = st.session_state.pop(PENDING_REMEMBER_KEY, None)
     clear = st.session_state.pop(CLEAR_REMEMBER_KEY, None)
     if not token and not clear:
@@ -205,35 +323,6 @@ try {{
 </script>
 """
     )
-
-
-def process_remember_resume() -> bool:
-    """
-    Resume a session from ?resume=<token> (set by browser localStorage bridge).
-
-    Returns True when login succeeded (caller should st.rerun()).
-    """
-    params = st.query_params
-    raw = params.get("resume")
-    if isinstance(raw, (list, tuple)):
-        raw = raw[0] if raw else None
-    if not raw:
-        return False
-
-    try:
-        if "resume" in st.query_params:
-            del st.query_params["resume"]
-    except Exception:
-        pass
-
-    user = get_user_for_remember_token(str(raw))
-    if not user:
-        st.session_state[CLEAR_REMEMBER_KEY] = True
-        return False
-
-    set_current_user(user, remember=True)
-    st.session_state["entered_app"] = True
-    return True
 
 
 def resume_bridge_script(*, force_app: bool = True) -> None:
@@ -280,19 +369,38 @@ def register_with_email(*, email: str, password: str, name: str = "") -> dict[st
     existing = get_user_by_email(email_norm)
     password_hash = _hash_password(password)
     if existing:
-        # Allow recreating / resetting the password for the same email.
-        # (Common after Streamlit Cloud redeploys wipe the local SQLite DB,
-        # or when a previous autofill submit left a confusing failed login.)
+        raise ValueError("An account with that email already exists. Sign in instead.")
+    user = create_email_user(
+        email=email_norm,
+        password_hash=password_hash,
+        name=name or email_norm.split("@")[0],
+    )
+    set_current_user(user)
+    return get_current_user()  # type: ignore[return-value]
+
+
+def reset_password_with_email(*, email: str, password: str) -> dict[str, Any]:
+    """Reset password for an existing account (or recreate after storage wipe)."""
+    init_auth_db()
+    email_norm = email.strip().lower()
+    password = (password or "").strip("\r\n")
+    if "@" not in email_norm:
+        raise ValueError("Enter a valid email address.")
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters.")
+    password_hash = _hash_password(password)
+    existing = get_user_by_email(email_norm)
+    if existing:
         user = update_email_password(
             email=email_norm,
             password_hash=password_hash,
-            name=name or existing.get("name") or email_norm.split("@")[0],
+            name=existing.get("name") or email_norm.split("@")[0],
         )
     else:
         user = create_email_user(
             email=email_norm,
             password_hash=password_hash,
-            name=name or email_norm.split("@")[0],
+            name=email_norm.split("@")[0],
         )
     set_current_user(user)
     return get_current_user()  # type: ignore[return-value]
@@ -309,21 +417,13 @@ def login_with_email(*, email: str, password: str) -> dict[str, Any]:
 
     user = get_user_by_email(email_norm)
     if not user:
-        raise ValueError(
-            "No account found for that email. Choose “Create account” to register "
-            "(or recreate it if the app was redeployed)."
-        )
+        raise ValueError("No account found for that email.")
 
     stored = get_password_hash(email_norm)
     if not stored:
-        raise ValueError(
-            "That email was signed up with Google/Discord and has no password. "
-            "Use “Create account” with this email to set a password, or continue with social sign-in."
-        )
+        raise ValueError("Use Google or Discord for this account, or reset your password below.")
     if not _verify_password(password, stored):
-        raise ValueError(
-            "Incorrect password. Try again, or use “Create account” with this email to reset it."
-        )
+        raise ValueError("Incorrect password.")
 
     set_current_user(user)
     return get_current_user()  # type: ignore[return-value]

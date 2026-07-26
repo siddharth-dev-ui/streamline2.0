@@ -28,6 +28,8 @@ def render_profile_form(
     *,
     key_prefix: str = "profile",
     show_title: bool = True,
+    compact: bool = False,
+    submit_label: str = "Save profile",
 ) -> dict[str, Any] | None:
     """
     Render the profile questionnaire.
@@ -60,8 +62,6 @@ def render_profile_form(
             index=_default_index(RISK_TOLERANCE_LEVELS, profile.get("risk_tolerance")),
         )
 
-        st.markdown('<div class="form-section-label">Time Horizon & Experience</div>', unsafe_allow_html=True)
-
         investment_horizon = st.selectbox(
             "Investment horizon",
             INVESTMENT_HORIZONS,
@@ -73,42 +73,48 @@ def render_profile_form(
             index=_default_index(EXPERIENCE_LEVELS, profile.get("experience")),
         )
 
-        st.markdown('<div class="form-section-label">Preferences</div>', unsafe_allow_html=True)
+        if compact:
+            preferred_sectors = profile.get("preferred_sectors") or []
+            interest_in_etfs = bool(profile.get("interest_in_etfs", True))
+            interest_in_dividends = bool(profile.get("interest_in_dividends", False))
+            portfolio_size = profile.get("portfolio_size") or "Prefer not to say"
+        else:
+            st.markdown('<div class="form-section-label">Preferences</div>', unsafe_allow_html=True)
 
-        preferred_sectors = st.multiselect(
-            "Preferred sectors",
-            SECTOR_OPTIONS,
-            default=profile.get("preferred_sectors") or [],
-        )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            interest_in_etfs = st.radio(
-                "Interest in ETFs",
-                options=[True, False],
-                format_func=lambda value: "Yes" if value else "No",
-                index=0 if profile.get("interest_in_etfs", True) else 1,
-                horizontal=True,
-            )
-        with col2:
-            interest_in_dividends = st.radio(
-                "Interest in dividend investing",
-                options=[True, False],
-                format_func=lambda value: "Yes" if value else "No",
-                index=0 if profile.get("interest_in_dividends", False) else 1,
-                horizontal=True,
+            preferred_sectors = st.multiselect(
+                "Preferred sectors",
+                SECTOR_OPTIONS,
+                default=profile.get("preferred_sectors") or [],
             )
 
-        portfolio_size = st.selectbox(
-            "Portfolio size (optional)",
-            PORTFOLIO_SIZE_OPTIONS,
-            index=_default_index(
+            col1, col2 = st.columns(2)
+            with col1:
+                interest_in_etfs = st.radio(
+                    "Interest in ETFs",
+                    options=[True, False],
+                    format_func=lambda value: "Yes" if value else "No",
+                    index=0 if profile.get("interest_in_etfs", True) else 1,
+                    horizontal=True,
+                )
+            with col2:
+                interest_in_dividends = st.radio(
+                    "Interest in dividend investing",
+                    options=[True, False],
+                    format_func=lambda value: "Yes" if value else "No",
+                    index=0 if profile.get("interest_in_dividends", False) else 1,
+                    horizontal=True,
+                )
+
+            portfolio_size = st.selectbox(
+                "Portfolio size (optional)",
                 PORTFOLIO_SIZE_OPTIONS,
-                profile.get("portfolio_size") or "Prefer not to say",
-            ),
-        )
+                index=_default_index(
+                    PORTFOLIO_SIZE_OPTIONS,
+                    profile.get("portfolio_size") or "Prefer not to say",
+                ),
+            )
 
-        submitted = st.form_submit_button("Save profile", type="primary", use_container_width=True)
+        submitted = st.form_submit_button(submit_label, type="primary", use_container_width=True)
 
     if not submitted:
         return None

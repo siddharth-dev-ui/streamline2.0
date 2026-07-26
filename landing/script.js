@@ -6,6 +6,20 @@
   const mobileMenu = document.getElementById("mobileMenu");
   const year = document.getElementById("year");
 
+  // Returning users: skip marketing and resume the session immediately.
+  try {
+    const remember = localStorage.getItem("streamline_remember");
+    if (remember && window.STREAMLIT_EMBED) {
+      const url = new URL(window.top.location.href);
+      if (!url.searchParams.get("resume")) {
+        url.searchParams.set("app", "1");
+        url.searchParams.set("resume", remember);
+        url.searchParams.delete("landing");
+        window.top.location.replace(url.toString());
+      }
+    }
+  } catch (e) {}
+
   // v2 = dark is the product default; migrate once from the old light default.
   const THEME_STORE = "streamline-landing-theme";
   const THEME_VERSION_KEY = "streamline-landing-theme-v";

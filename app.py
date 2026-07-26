@@ -27,20 +27,18 @@ from utils.theme import apply_theme, init_theme
 
 init_auth_db()
 
-# Complete Google / Discord OAuth redirects before any other gate.
 if process_oauth_callback():
     remember_token_scripts()
     st.rerun()
 
-# Returning visitors: localStorage remember token → ?resume=…
 if process_remember_resume():
     remember_token_scripts()
     st.rerun()
 
 remember_token_scripts()
 
-if should_show_landing():
-    # If a saved session exists, jump straight into the app.
+# Returning sessions resume before marketing ever paints.
+if should_show_landing() and not is_authenticated():
     resume_bridge_script(force_app=True)
     render_landing()
     st.stop()
@@ -55,8 +53,6 @@ if not is_authenticated():
     st.stop()
 
 init_theme()
-
-# Show on every run while content is building; auto-dismisses (max 4s failsafe).
 show_boot_loader("Loading Streamline…")
 
 completed = has_completed_onboarding()
@@ -75,6 +71,5 @@ else:
     render_sidebar()
     render_page()
 
-# Inject last so it overrides Streamlit's built-in theme CSS.
 apply_theme(expand_sidebar=completed)
 dismiss_boot_loader()

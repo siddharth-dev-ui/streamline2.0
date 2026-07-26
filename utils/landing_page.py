@@ -345,44 +345,6 @@ def render_landing() -> None:
     except Exception as exc:
         st.error("The landing page could not be loaded.")
         st.caption(str(exc))
-
-    # Cloud-safe live demo (Streamlit Cloud cannot reach localhost:8080).
-    with st.expander("Live ticker demo (works on Streamlit Cloud)", expanded=False):
-        st.caption("Educational only — not financial advice.")
-        demo_q = st.text_input("Ticker", placeholder="e.g. MSFT", key="cloud_landing_demo_ticker")
-        if st.button("Analyze ticker", key="cloud_landing_demo_go", type="primary"):
-            try:
-                from landing.demo_recommend import build_demo_recommendation
-
-                with st.spinner("Fetching live market data…"):
-                    result = build_demo_recommendation(demo_q)
-                st.subheader(f"{result.get('recommendation', '—')} · {result.get('ticker', '')}")
-                st.write(
-                    f"**{result.get('company', '')}** — confidence {result.get('confidence', '—')}%"
-                )
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    st.markdown("**Technical**")
-                    st.write(result.get("technical_label", ""))
-                    st.caption(result.get("technical_detail", ""))
-                with c2:
-                    st.markdown("**Fundamental**")
-                    st.write(result.get("fundamental_label", ""))
-                    st.caption(result.get("fundamental_detail", ""))
-                with c3:
-                    st.markdown("**Risk**")
-                    st.write(result.get("risk_label", ""))
-                    st.caption(result.get("risk_detail", ""))
-                if result.get("price") is not None:
-                    st.caption(f"Live price ≈ ${float(result['price']):.2f}")
-            except ValueError as exc:
-                st.warning(str(exc))
-            except Exception:
-                st.error("Unable to fetch live data right now. Try again in a moment.")
-
-    # Always-visible Cloud-safe entry (iframe links can be blocked by the browser).
-    cols = st.columns([2, 1, 2])
-    with cols[1]:
         if st.button("Enter Streamline", type="primary", use_container_width=True, key="enter_app_fallback"):
             enter_app()
             st.rerun()
